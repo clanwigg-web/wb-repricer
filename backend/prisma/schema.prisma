@@ -1,0 +1,211 @@
+// This is your Prisma schema file
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================================
+// USERS
+// ============================================================================
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  wbApiKey  String?  @map("wb_api_key")
+  
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  
+  // Relations
+  skus       SKU[]
+  strategies Strategy[]
+  
+  @@map("users")
+}
+
+// ============================================================================
+// SKU (Stock Keeping Unit - товары)
+// ============================================================================
+model SKU {
+  id           String   @id @default(uuid())
+  userId       String   @map("user_id")
+  wbSkuId      String   @unique @map("wb_sku_id")
+  name         String?
+  currentPrice Decimal? @map("current_price") @db.Decimal(10, 2)
+  position     Int?
+  active       Boolean  @default(true)
+  
+  // Unit Economics
+  costPrice     Decimal @map("cost_price") @db.Decimal(10, 2)
+  wbCommission  Decimal @default(15.0) @map("wb_commission") @db.Decimal(5, 2)
+  logistics     Decimal @default(0) @db.Decimal(10, 2)
+  storage       Decimal @default(0) @db.Decimal(10, 2)
+  spp           Decimal @default(0) @db.Decimal(5, 2)
+  tax           Decimal @default(6.0) @db.Decimal(5, 2)
+  
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  
+  // Relations
+  user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  skuStrategies  SKUStrategy[]
+  priceHistory   PriceHistory[]
+  signals        Signal[]
+  priceRejections PriceRejection[]
+  marketData     MarketData[]
+  
+  @@map("skus")
+  @@index([userId])
+  @@index([wbSkuId])
+}
+
+// ============================================================================
+// STRATEGIES
+// ============================================================================
+model Strategy {
+  id     String  @id @default(uuid())
+  userId String  @map("user_id")
+  name   String
+  type   String  // competitive_hold, price_leader, margin_maximizer, etc.
+  active Boolean @default(true)
+  
+  // Configuration (stored as JSON)
+  conditions      Json   @default("[]")
+  actions         Json   @default("[]")
+  constraints     Json   @default("[]")
+  stopConditions  Json   @default("[]") @map("stop_conditions")
+  
+  // Signal handling
+  allowedSignals  String[] @default([]) @map("allowed_signals")
+  ignoredSignals  String[] @default([]) @map("ignored_signals")
+  
+  // Cooldown
+  cooldownMinutes    Int @default(360) @map("cooldown_minutes")
+  maxChangesPerDay   Int @default(3) @map("max_changes_per_day")
+  
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  
+  // Relations
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  skuStrategies SKUStrategy[]
+  
+  @@map("strategies")
+  @@index([userId])
+  @@index([type])
+}
+
+// ============================================================================
+// SKU_STRATEGIES (связь многие-ко-многим)
+// ============================================================================
+model SKUStrategy {
+  id         String  @id @default(uuid())
+  skuId      String  @map("sku_id")
+  strategyId String  @map("strategy_id")
+  active     Boolean @default(false)
+  
+  // Переопределения для конкретного SKU (если нужно)
+  customConstraints Json? @map("custom_constraints")
+  
+  createdAt DateTime @default(now()) @map("created_at")
+  
+  // Relations
+  sku      SKU      @relation(fields: [skuId], references: [id], onDelete: Cascade)
+  strategy Strategy @relation(fields: [strategyId], references: [id], onDelete: Cascade)
+  
+  @@unique([skuId, strategyId])
+  @@map("sku_strategies")
+  @@index([skuId])
+  @@index([strategyId])
+  @@index([active])
+}
+
+// ============================================================================
+// PRICE_HISTORY (история изменений цен)
+// ============================================================================
+model PriceHistory {
+  time       DateTime @default(now())
+  skuId      String   @map("sku_id")
+  price      Decimal  @db.Decimal(10, 2)
+  
+  // Context
+  strategyId String? @map("strategy_id")
+  signalType String? @map("signal_type")
+  reason     String?
+  
+  // Economics snapshot
+  profit Decimal? @db.Decimal(10, 2)
+  margin Decimal? @db.Decimal(5, 2)
+  
+  // Relations
+  sku SKU @relation(fields: [skuId], references: [id], onDelete: Cascade)
+  
+  @@id([time, skuId])
+  @@map("price_history")
+  @@index([skuId, time(sort: Desc)])
+}
+
+// ============================================================================
+// SIGNALS (сигналы для репрайсинга)
+// ============================================================================
+model Signal {
+  id        String   @id @default(uuid())
+  skuId     String   @map("sku_id")
+  type      String
+  data      Json     @default("{}")
+  processed Boolean  @default(false)
+  priority  Int      @default(5)
+  
+  createdAt DateTime @default(now()) @map("created_at")
+  
+  // Relations
+  sku SKU @relation(fields: [skuId], references: [id], onDelete: Cascade)
+  
+  @@map("signals")
+  @@index([skuId, createdAt(sort: Desc)])
+  @@index([processed])
+  @@index([priority])
+}
+
+// ============================================================================
+// PRICE_REJECTIONS (отклонённые изменения цен)
+// ============================================================================
+model PriceRejection {
+  id               String   @id @default(uuid())
+  skuId            String   @map("sku_id")
+  proposedPrice    Decimal  @map("proposed_price") @db.Decimal(10, 2)
+  rejectionReason  String   @map("rejection_reason")
+  validationErrors Json     @map("validation_errors")
+  
+  createdAt DateTime @default(now()) @map("created_at")
+  
+  // Relations
+  sku SKU @relation(fields: [skuId], references: [id], onDelete: Cascade)
+  
+  @@map("price_rejections")
+  @@index([skuId, createdAt(sort: Desc)])
+}
+
+// ============================================================================
+// MARKET_DATA (кеш данных о конкурентах)
+// ============================================================================
+model MarketData {
+  id          String   @id @default(uuid())
+  skuId       String   @map("sku_id")
+  competitors Json     // [{ price, position, sellerId, inStock }]
+  minPrice    Decimal? @map("min_price") @db.Decimal(10, 2)
+  maxPrice    Decimal? @map("max_price") @db.Decimal(10, 2)
+  medianPrice Decimal? @map("median_price") @db.Decimal(10, 2)
+  
+  fetchedAt DateTime @default(now()) @map("fetched_at")
+  
+  // Relations
+  sku SKU @relation(fields: [skuId], references: [id], onDelete: Cascade)
+  
+  @@map("market_data")
+  @@index([skuId, fetchedAt(sort: Desc)])
+}
