@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { api } from '@/lib/api';
+import { api } from './api';
 
 interface User {
   id: string;
@@ -12,7 +12,6 @@ interface AuthState {
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string) => Promise<void>;
   logout: () => void;
   loadUser: () => Promise<void>;
 }
@@ -25,17 +24,9 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   login: async (email, password) => {
     const data = await api.login(email, password);
-    localStorage.setItem('token', data.token);
-    set({
-      user: data.user,
-      token: data.token,
-      isAuthenticated: true
-    });
-  },
-
-  register: async (email, password) => {
-    const data = await api.register(email, password);
-    localStorage.setItem('token', data.token);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('token', data.token);
+    }
     set({
       user: data.user,
       token: data.token,
@@ -44,7 +35,9 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 
   logout: () => {
-    localStorage.removeItem('token');
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('token');
+    }
     set({
       user: null,
       token: null,
@@ -54,7 +47,7 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   loadUser: async () => {
     try {
-      const token = localStorage.getItem('token');
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
       if (!token) {
         set({ isLoading: false });
         return;
@@ -67,7 +60,9 @@ export const useAuthStore = create<AuthState>((set) => ({
         isLoading: false
       });
     } catch (error) {
-      localStorage.removeItem('token');
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('token');
+      }
       set({
         user: null,
         token: null,
