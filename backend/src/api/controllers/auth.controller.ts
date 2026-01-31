@@ -74,10 +74,16 @@ export const register = async (req: Request, res: Response) => {
     });
 
   } catch (error: any) {
-    logger.error('Registration failed', { error: error.message });
+    logger.error('Registration failed', { 
+      error: error.message,
+      stack: error.stack,
+      email: req.body.email 
+    });
+    console.error('REGISTRATION ERROR:', error);
     res.status(500).json({
       error: 'Internal Server Error',
-      message: 'Registration failed'
+      message: 'Registration failed',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 };
@@ -129,10 +135,16 @@ export const login = async (req: Request, res: Response) => {
     });
 
   } catch (error: any) {
-    logger.error('Login failed', { error: error.message });
+    logger.error('Login failed', { 
+      error: error.message,
+      stack: error.stack,
+      email: req.body.email 
+    });
+    console.error('LOGIN ERROR:', error);
     res.status(500).json({
       error: 'Internal Server Error',
-      message: 'Login failed'
+      message: 'Login failed',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 };
