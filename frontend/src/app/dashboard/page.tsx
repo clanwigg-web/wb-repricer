@@ -2,9 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuthStore } from '@/lib/store';
-import { api } from '@/lib/api';
-import { formatPrice } from '@/lib/utils';
+import { useAuthStore } from '../../lib/store';
+import { api } from '../../lib/api';
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -59,10 +58,6 @@ export default function DashboardPage() {
             <div className="flex items-center">
               <h1 className="text-2xl font-bold">WB Repricer</h1>
             </div>
-            <div className="flex items-center space-x-4">
-              <a href="/skus" className="text-gray-700 hover:text-gray-900">SKU</a>
-              <a href="/strategies" className="text-gray-700 hover:text-gray-900">Стратегии</a>
-            </div>
           </div>
         </div>
       </nav>
@@ -70,35 +65,13 @@ export default function DashboardPage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <h1 className="text-3xl font-bold mb-8">Dashboard</h1>
 
-        {/* Metrics */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-          <MetricCard
-            icon="🎯"
-            label="SKU под управлением"
-            value={overview.activeSkus}
-            color="blue"
-          />
-          <MetricCard
-            icon="⚡"
-            label="Активных стратегий"
-            value={overview.activeStrategies}
-            color="green"
-          />
-          <MetricCard
-            icon="⚠️"
-            label="Safe Mode"
-            value={overview.safeModeSKUs}
-            color="yellow"
-          />
-          <MetricCard
-            icon="📊"
-            label="Всего SKU"
-            value={overview.totalSkus}
-            color="gray"
-          />
+          <MetricCard icon="🎯" label="SKU под управлением" value={overview.activeSkus} color="blue" />
+          <MetricCard icon="⚡" label="Активных стратегий" value={overview.activeStrategies} color="green" />
+          <MetricCard icon="⚠️" label="Safe Mode" value={overview.safeModeSKUs} color="yellow" />
+          <MetricCard icon="📊" label="Всего SKU" value={overview.totalSkus} color="gray" />
         </div>
 
-        {/* Today Stats */}
         <div className="bg-white rounded-lg shadow p-6 mb-8">
           <h2 className="text-xl font-semibold mb-4">Сегодня</h2>
           <div className="space-y-2">
@@ -110,19 +83,6 @@ export default function DashboardPage() {
               <span className="text-gray-600">🚫 Изменение запрещено</span>
               <span className="font-semibold">{overview.today.rejections} раза</span>
             </div>
-          </div>
-        </div>
-
-        {/* Quick Actions */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-xl font-semibold mb-4">Быстрые действия</h2>
-          <div className="space-y-2">
-            <a href="/skus" className="block p-3 bg-blue-50 rounded hover:bg-blue-100 transition">
-              📦 Управление SKU
-            </a>
-            <a href="/strategies" className="block p-3 bg-green-50 rounded hover:bg-green-100 transition">
-              ⚡ Управление стратегиями
-            </a>
           </div>
         </div>
       </div>

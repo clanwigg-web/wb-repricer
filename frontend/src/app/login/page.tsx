@@ -2,8 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuthStore } from '@/lib/store';
-import { Button } from '@/components/ui/button';
+import { useAuthStore } from '../../lib/store';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -20,7 +19,7 @@ export default function LoginPage() {
 
     try {
       await login(email, password);
-      router.push('/');
+      router.push('/dashboard');
     } catch (err: any) {
       setError(err.response?.data?.message || 'Ошибка входа');
     } finally {
@@ -73,13 +72,13 @@ export default function LoginPage() {
             />
           </div>
 
-          <Button
+          <button
             type="submit"
-            className="w-full"
             disabled={loading}
+            className="w-full inline-flex items-center justify-center rounded-md bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 disabled:opacity-50"
           >
             {loading ? 'Вход...' : 'Войти'}
-          </Button>
+          </button>
         </form>
       </div>
     </div>
