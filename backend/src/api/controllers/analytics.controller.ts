@@ -109,7 +109,7 @@ export const getPriceAutopsy = async (req: Request, res: Response) => {
       })),
       
       // Проверяем constraints
-      constraintsStatus: activeStrategy ? activeStrategy.constraints.map((c: any) => {
+      constraintsStatus: activeStrategy ? (activeStrategy.constraints as any[]).map((c: any) => {
         let satisfied = true;
         let message = '';
 
