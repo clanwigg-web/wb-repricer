@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '../../lib/store';
 import { api } from '../../lib/api';
+import DashboardLayout from '../../components/layout/DashboardLayout';
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -39,7 +40,7 @@ export default function DashboardPage() {
   };
 
   if (isLoading || loading) {
-    return <div className="p-8">Загрузка...</div>;
+    return <DashboardLayout><div className="p-8">Загрузка...</div></DashboardLayout>;
   }
 
   if (!isAuthenticated) {
@@ -47,22 +48,12 @@ export default function DashboardPage() {
   }
 
   if (!overview) {
-    return <div className="p-8">Нет данных</div>;
+    return <DashboardLayout><div className="p-8">Нет данных</div></DashboardLayout>;
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <nav className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-16">
-            <div className="flex items-center">
-              <h1 className="text-2xl font-bold">WB Repricer</h1>
-            </div>
-          </div>
-        </div>
-      </nav>
-
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <DashboardLayout>
+      <div className="p-8">
         <h1 className="text-3xl font-bold mb-8">Dashboard</h1>
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
@@ -72,7 +63,7 @@ export default function DashboardPage() {
           <MetricCard icon="📊" label="Всего SKU" value={overview.totalSkus} color="gray" />
         </div>
 
-        <div className="bg-white rounded-lg shadow p-6 mb-8">
+        <div className="bg-white rounded-lg shadow p-6">
           <h2 className="text-xl font-semibold mb-4">Сегодня</h2>
           <div className="space-y-2">
             <div className="flex justify-between">
@@ -86,7 +77,7 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
-    </div>
+    </DashboardLayout>
   );
 }
 
