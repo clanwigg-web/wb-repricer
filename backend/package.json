@@ -3,6 +3,10 @@
   "version": "1.0.0",
   "description": "WB Repricer Backend",
   "main": "dist/index.js",
+  "_moduleAliases": {
+  "@": "dist",
+  "@shared": "dist/shared"
+  },
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
@@ -32,6 +36,7 @@
     "winston": "^3.11.0",
     "date-fns": "^3.0.6",
     "node-cron": "^3.0.3"
+	"module-alias": "^2.2.3"
   },
   "devDependencies": {
     "@types/node": "^20.10.6",
