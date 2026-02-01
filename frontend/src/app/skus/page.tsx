@@ -251,22 +251,6 @@ function SKUModal({ onClose, onSave }: { onClose: () => void; onSave: (sku: SKU)
     }
   };
 
-  const Field = ({ label, name, placeholder, type = 'text', suffix }: any) => (
-    <div>
-      <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
-      <div className="relative">
-        <input
-          type={type}
-          value={(form as any)[name]}
-          onChange={(e) => setForm((prev) => ({ ...prev, [name]: e.target.value }))}
-          placeholder={placeholder}
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
-        {suffix && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">{suffix}</span>}
-      </div>
-    </div>
-  );
-
   return (
     <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
       <div className="bg-white rounded-lg shadow-xl max-w-lg w-full mx-4 max-h-screen overflow-y-auto">
@@ -330,17 +314,17 @@ function SKUModal({ onClose, onSave }: { onClose: () => void; onSave: (sku: SKU)
             )}
           </div>
 
-          <Field label="Название товара" name="name" placeholder="Электрическая фритюрница" />
+          <FormField label="Название товара" placeholder="Электрическая фритюрница" value={form.name} onChange={(v) => setForm((prev) => ({ ...prev, name: v }))} />
 
           <div className="border-t pt-4 mt-4">
             <p className="text-xs font-semibold text-gray-500 uppercase mb-3">Экономика товара</p>
             <div className="grid grid-cols-2 gap-4">
-              <Field label="Себестоимость *" name="costPrice" placeholder="800" suffix="₽" type="number" />
-              <Field label="Текущая цена" name="currentPrice" placeholder="1500" suffix="₽" type="number" />
-              <Field label="Комиссия WB" name="wbCommission" placeholder="15" suffix="%" type="number" />
-              <Field label="Логистика" name="logistics" placeholder="50" suffix="₽" type="number" />
-              <Field label="Хранение" name="storage" placeholder="0" suffix="₽" type="number" />
-              <Field label="СПП" name="spp" placeholder="0" suffix="%" type="number" />
+              <FormField label="Себестоимость *" placeholder="800" suffix="₽" type="number" value={form.costPrice} onChange={(v) => setForm((prev) => ({ ...prev, costPrice: v }))} />
+              <FormField label="Текущая цена" placeholder="1500" suffix="₽" type="number" value={form.currentPrice} onChange={(v) => setForm((prev) => ({ ...prev, currentPrice: v }))} />
+              <FormField label="Комиссия WB" placeholder="15" suffix="%" type="number" value={form.wbCommission} onChange={(v) => setForm((prev) => ({ ...prev, wbCommission: v }))} />
+              <FormField label="Логистика" placeholder="50" suffix="₽" type="number" value={form.logistics} onChange={(v) => setForm((prev) => ({ ...prev, logistics: v }))} />
+              <FormField label="Хранение" placeholder="0" suffix="₽" type="number" value={form.storage} onChange={(v) => setForm((prev) => ({ ...prev, storage: v }))} />
+              <FormField label="СПП" placeholder="0" suffix="%" type="number" value={form.spp} onChange={(v) => setForm((prev) => ({ ...prev, spp: v }))} />
             </div>
           </div>
 
@@ -351,6 +335,32 @@ function SKUModal({ onClose, onSave }: { onClose: () => void; onSave: (sku: SKU)
             </button>
           </div>
         </form>
+      </div>
+    </div>
+  );
+}
+
+// Отдельный компонент — стабильная ссылка, не пересоздаётся при каждом setState родителя
+function FormField({ label, placeholder, type = 'text', suffix, value, onChange }: {
+  label: string;
+  placeholder: string;
+  type?: string;
+  suffix?: string;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <div>
+      <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
+      <div className="relative">
+        <input
+          type={type}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+        {suffix && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">{suffix}</span>}
       </div>
     </div>
   );
