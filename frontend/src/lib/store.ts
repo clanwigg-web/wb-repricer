@@ -12,6 +12,7 @@ interface AuthState {
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
+  register: (email: string, password: string) => Promise<void>;
   logout: () => void;
   loadUser: () => Promise<void>;
 }
@@ -24,9 +25,17 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   login: async (email, password) => {
     const data = await api.login(email, password);
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('token', data.token);
-    }
+    localStorage.setItem('token', data.token);
+    set({
+      user: data.user,
+      token: data.token,
+      isAuthenticated: true
+    });
+  },
+
+  register: async (email, password) => {
+    const data = await api.register(email, password);
+    localStorage.setItem('token', data.token);
     set({
       user: data.user,
       token: data.token,
@@ -35,9 +44,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 
   logout: () => {
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('token');
-    }
+    localStorage.removeItem('token');
     set({
       user: null,
       token: null,
@@ -47,7 +54,7 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   loadUser: async () => {
     try {
-      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+      const token = localStorage.getItem('token');
       if (!token) {
         set({ isLoading: false });
         return;
@@ -60,9 +67,7 @@ export const useAuthStore = create<AuthState>((set) => ({
         isLoading: false
       });
     } catch (error) {
-      if (typeof window !== 'undefined') {
-        localStorage.removeItem('token');
-      }
+      localStorage.removeItem('token');
       set({
         user: null,
         token: null,
