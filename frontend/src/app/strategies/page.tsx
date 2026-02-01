@@ -1,10 +1,19 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuthStore } from '../../lib/store';
 import { api } from '../../lib/api';
 import DashboardLayout from '../../components/layout/DashboardLayout';
+
+// Обёртка: useSearchParams требует Suspense в Next.js 14
+export default function StrategiesPageWrapper() {
+  return (
+    <Suspense fallback={<DashboardLayout><div className="p-8 text-gray-500">Загрузка...</div></DashboardLayout>}>
+      <StrategiesPageInner />
+    </Suspense>
+  );
+}
 
 interface Strategy {
   id: string;
@@ -32,7 +41,7 @@ interface SKU {
   name: string | null;
 }
 
-export default function StrategiesPage() {
+function StrategiesPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const skuIdParam = searchParams.get('skuId');
