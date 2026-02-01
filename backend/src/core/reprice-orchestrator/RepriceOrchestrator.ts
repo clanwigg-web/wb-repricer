@@ -240,21 +240,30 @@ export class RepriceOrchestrator {
     });
 
     if (!marketData) {
-      // Возвращаем заглушку для MVP
       this.logger.warn(`No market data found for SKU ${skuId}, using defaults`);
       return {
-        minPrice: 1000,
-        maxPrice: 2000,
-        medianPrice: 1500,
-        competitorCount: 5
+        minPrice: 0,
+        maxPrice: 0,
+        medianPrice: 0,
+        competitorCount: 0,
+        competitors: []
       };
+    }
+
+    // competitors хранится как JSON массив в БД
+    let competitors: any[] = [];
+    try {
+      competitors = Array.isArray(marketData.competitors) ? marketData.competitors : [];
+    } catch {
+      competitors = [];
     }
 
     return {
       minPrice: Number(marketData.minPrice) || 0,
       maxPrice: Number(marketData.maxPrice) || 0,
       medianPrice: Number(marketData.medianPrice) || 0,
-      competitorCount: 5 // TODO: extract from competitors JSON
+      competitorCount: competitors.length,
+      competitors
     };
   }
 

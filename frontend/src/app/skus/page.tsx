@@ -18,10 +18,18 @@ interface SKU {
   skuStrategies?: { strategy: { name: string; type: string } }[];
 }
 
+interface MarketInfo {
+  minPrice: number;
+  medianPrice: number;
+  competitorCount: number;
+  fetchedAt: string;
+}
+
 export default function SKUsPage() {
   const router = useRouter();
   const { isAuthenticated, isLoading, loadUser } = useAuthStore();
   const [skus, setSkus] = useState<SKU[]>([]);
+  const [marketData, setMarketData] = useState<Record<string, MarketInfo>>({});
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -44,6 +52,25 @@ export default function SKUsPage() {
     try {
       const data = await api.getSKUs();
       setSkus(data.skus);
+
+      // Подтягиваем рыночные данные для каждого SKU в параллельных запросах
+      const marketResults = await Promise.allSettled(
+        data.skus.map((sku: SKU) => api.getMarketData(sku.id))
+      );
+      const mktMap: Record<string, MarketInfo> = {};
+      data.skus.forEach((sku: SKU, i: number) => {
+        const result = marketResults[i];
+        if (result.status === 'fulfilled' && result.value?.marketData) {
+          const md = result.value.marketData;
+          mktMap[sku.id] = {
+            minPrice: md.minPrice,
+            medianPrice: md.medianPrice,
+            competitorCount: Array.isArray(md.competitors) ? md.competitors.length : 0,
+            fetchedAt: md.fetchedAt,
+          };
+        }
+      });
+      setMarketData(mktMap);
     } catch (e) {
       console.error('Failed to fetch SKUs', e);
     } finally {
@@ -102,6 +129,7 @@ export default function SKUsPage() {
                   <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Название</th>
                   <th className="text-right px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Себестоимость</th>
                   <th className="text-right px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Текущая цена</th>
+                  <th className="text-right px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Рынок</th>
                   <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Стратегия</th>
                   <th className="text-right px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Действия</th>
                 </tr>
@@ -116,6 +144,20 @@ export default function SKUsPage() {
                       <td className="px-6 py-4 text-sm text-gray-600 text-right">{sku.costPrice} ₽</td>
                       <td className="px-6 py-4 text-sm text-gray-800 font-semibold text-right">
                         {sku.currentPrice != null ? `${sku.currentPrice} ₽` : '—'}
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        {marketData[sku.id] ? (
+                          <div>
+                            <div className="text-sm text-gray-800 font-semibold">
+                              {marketData[sku.id].minPrice} – {marketData[sku.id].medianPrice} ₽
+                            </div>
+                            <div className="text-xs text-gray-400">
+                              {marketData[sku.id].competitorCount} конкурентов
+                            </div>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-gray-400">Нет данных</span>
+                        )}
                       </td>
                       <td className="px-6 py-4">
                         {strat ? (

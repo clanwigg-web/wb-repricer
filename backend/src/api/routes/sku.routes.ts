@@ -29,4 +29,7 @@ router.delete('/:id', skuController.deleteSKU);
 // Manual reprice
 router.post('/:id/reprice', skuController.triggerReprice);
 
+// Market data
+router.get('/:id/market-data', skuController.getMarketData);
+
 export default router;

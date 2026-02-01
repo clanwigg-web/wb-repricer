@@ -322,6 +322,58 @@ export const deleteSKU = async (req: Request, res: Response) => {
 /**
  * Триггернуть ручной репрайсинг
  */
+
+/**
+ * Получить последние рыночные данные для SKU
+ * GET /skus/:id/market-data
+ */
+export const getMarketData = async (req: Request, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const { id } = req.params;
+
+    // Проверяем принадлежность SKU
+    const sku = await prisma.sKU.findFirst({
+      where: { id, userId: req.user.userId }
+    });
+    if (!sku) {
+      return res.status(404).json({ error: 'SKU not found' });
+    }
+
+    // Последние market data
+    const marketData = await prisma.marketData.findFirst({
+      where: { skuId: id },
+      orderBy: { fetchedAt: 'desc' }
+    });
+
+    if (!marketData) {
+      return res.json({
+        marketData: null,
+        message: 'No market data yet. Data is fetched every 30 minutes.'
+      });
+    }
+
+    res.json({
+      marketData: {
+        minPrice: Number(marketData.minPrice),
+        maxPrice: Number(marketData.maxPrice),
+        medianPrice: Number(marketData.medianPrice),
+        competitors: marketData.competitors,
+        fetchedAt: marketData.fetchedAt
+      }
+    });
+  } catch (error: any) {
+    logger.error('Failed to get market data', { error: error.message });
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+};
+
+/**
+ * Триггернуть ручной репрайсинг
+ */
 export const triggerReprice = async (req: Request, res: Response) => {
   try {
     if (!req.user) {

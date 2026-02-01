@@ -95,6 +95,11 @@ class ApiClient {
     return data;
   }
 
+  async getMarketData(skuId: string) {
+    const { data } = await this.client.get(`/skus/${skuId}/market-data`);
+    return data;
+  }
+
   // Strategies
   async getStrategies() {
     const { data } = await this.client.get('/strategies');

@@ -107,53 +107,88 @@ async function getSKUsToProcess(userId: string, skuIds?: string[]) {
 async function processSKU(sku: any, wbClient: WBApiClient) {
   logger.debug(`Processing SKU ${sku.wbSkuId}`);
 
-  // 1. Получаем актуальную информацию о товаре
-  const product = await wbClient.getProduct(Number(sku.wbSkuId));
+  const nmId = Number(sku.wbSkuId);
 
-  if (!product) {
-    logger.warn(`Product ${sku.wbSkuId} not found on WB`);
+  // 1. Получаем актуальную информацию о товаре через наш API
+  const product = await wbClient.getProduct(nmId);
+  if (product) {
+    await prisma.sKU.update({
+      where: { id: sku.id },
+      data: { currentPrice: product.priceWithDiscount }
+    });
+  }
+
+  // 2. Парсим цены конкурентов
+  const { WBMarketParser } = await import('@/services/wb-api/WBMarketParser');
+  const parser = new WBMarketParser();
+  const marketPriceData = await parser.getCompetitorPrices(nmId);
+
+  if (!marketPriceData) {
+    logger.warn(`No market data returned for SKU ${sku.wbSkuId}`);
     return;
   }
 
-  // 2. Сохраняем старые значения для сравнения
-  const oldPrice = Number(sku.currentPrice);
-  const oldPosition = sku.position;
-
-  // 3. Обновляем данные в БД
-  await prisma.sKU.update({
-    where: { id: sku.id },
-    data: {
-      currentPrice: product.priceWithDiscount,
-      // position будет обновляться через отдельный механизм
-    }
-  });
-
-  // 4. Генерируем сигналы при изменениях
-
-  // Изменение цены конкурентов (упрощённо - используем market_data)
-  const marketData = await prisma.marketData.findFirst({
+  // 3. Читаем предыдущие market data для сравнения сигналов
+  const prevMarketData = await prisma.marketData.findFirst({
     where: { skuId: sku.id },
     orderBy: { fetchedAt: 'desc' }
   });
 
-  if (marketData) {
-    const oldMinPrice = Number(marketData.minPrice);
-    
-    // TODO: Получить актуальные цены конкурентов
-    // Пока используем заглушку
-    const newMinPrice = oldMinPrice; // В реальности - из парсинга
+  // 4. Сохраняем новые market data в БД
+  await prisma.marketData.create({
+    data: {
+      skuId: sku.id,
+      competitors: marketPriceData.competitors,
+      minPrice: marketPriceData.minPrice,
+      maxPrice: marketPriceData.maxPrice,
+      medianPrice: marketPriceData.medianPrice,
+    }
+  });
 
-    if (newMinPrice < oldMinPrice) {
+  logger.info(`Market data saved for SKU ${sku.wbSkuId}`, {
+    minPrice: marketPriceData.minPrice,
+    maxPrice: marketPriceData.maxPrice,
+    medianPrice: marketPriceData.medianPrice,
+    competitorCount: marketPriceData.competitorCount
+  });
+
+  // 5. Генерируем сигналы при существенных изменениях
+  if (prevMarketData) {
+    const oldMin = Number(prevMarketData.minPrice);
+    const newMin = marketPriceData.minPrice;
+
+    // Падение минимальной цены конкурента больше чем на 3%
+    if (oldMin > 0 && newMin < oldMin && ((oldMin - newMin) / oldMin) > 0.03) {
       await SignalProcessor.createSignal(
         sku.id,
         SignalType.COMPETITOR_PRICE_DROP,
         {
-          oldPrice: oldMinPrice,
-          newPrice: newMinPrice,
-          priceChange: newMinPrice - oldMinPrice,
-          priceChangePercent: ((newMinPrice - oldMinPrice) / oldMinPrice) * 100
+          oldMinPrice: oldMin,
+          newMinPrice: newMin,
+          dropPercent: (((oldMin - newMin) / oldMin) * 100).toFixed(1),
         }
       );
+      logger.info(`COMPETITOR_PRICE_DROP signal created for SKU ${sku.wbSkuId}`, {
+        oldMin, newMin
+      });
+    }
+
+    // Рост минимальной цены больше чем на 5%
+    const oldMax = Number(prevMarketData.maxPrice);
+    const newMax = marketPriceData.maxPrice;
+    if (oldMin > 0 && newMin > oldMin && ((newMin - oldMin) / oldMin) > 0.05) {
+      await SignalProcessor.createSignal(
+        sku.id,
+        SignalType.COMPETITOR_PRICE_RISE,
+        {
+          oldMinPrice: oldMin,
+          newMinPrice: newMin,
+          risePercent: (((newMin - oldMin) / oldMin) * 100).toFixed(1),
+        }
+      );
+      logger.info(`COMPETITOR_PRICE_RISE signal created for SKU ${sku.wbSkuId}`, {
+        oldMin, newMin
+      });
     }
   }
 
