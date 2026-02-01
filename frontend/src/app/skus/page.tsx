@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuthStore } from '../../../lib/store';
-import { api } from '../../../lib/api';
-import DashboardLayout from '../../../components/layout/DashboardLayout';
+import { useAuthStore } from '../../lib/store';
+import { api } from '../../lib/api';
+import DashboardLayout from '../../components/layout/DashboardLayout';
 
 interface SKU {
   id: string;
