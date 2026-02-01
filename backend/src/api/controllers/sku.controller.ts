@@ -35,6 +35,49 @@ export const updateSKUSchema = z.object({
 });
 
 /**
+ * Получить список карточек товаров с WB API (для автокомплита)
+ * GET /skus/wb-cards?search=текст
+ */
+export const getWBCards = async (req: Request, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    // Грузим токен пользователя
+    const user = await prisma.user.findUnique({
+      where: { id: req.user.userId },
+      select: { wbApiKey: true }
+    });
+
+    if (!user?.wbApiKey) {
+      return res.status(400).json({
+        error: 'Bad Request',
+        message: 'WB API key not configured. Go to Settings to add your token.'
+      });
+    }
+
+    const { search } = req.query;
+    const { WBApiClient } = await import('@/services/wb-api/WBApiClient');
+    const wbClient = new WBApiClient(user.wbApiKey);
+
+    const cards = await wbClient.getCardsList(
+      search ? String(search) : undefined,
+      100
+    );
+
+    res.json({ cards });
+
+  } catch (error: any) {
+    logger.error('Failed to fetch WB cards', { error: error.message });
+    res.status(500).json({
+      error: 'Internal Server Error',
+      message: 'Failed to fetch cards from Wildberries'
+    });
+  }
+};
+
+/**
  * Получить все SKU пользователя
  */
 export const getSKUs = async (req: Request, res: Response) => {

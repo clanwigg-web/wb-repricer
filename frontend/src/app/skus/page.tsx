@@ -173,6 +173,7 @@ export default function SKUsPage() {
   );
 }
 
+
 function SKUModal({ onClose, onSave }: { onClose: () => void; onSave: (sku: SKU) => void }) {
   const [form, setForm] = useState({
     wbSkuId: '',
@@ -187,6 +188,42 @@ function SKUModal({ onClose, onSave }: { onClose: () => void; onSave: (sku: SKU)
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // Автокомплит
+  const [wbCards, setWbCards] = useState<{ nmId: number; title: string; vendorCode: string }[]>([]);
+  const [cardsLoading, setCardsLoading] = useState(false);
+  const [cardsLoaded, setCardsLoaded] = useState(false);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const [cardsError, setCardsError] = useState('');
+
+  const loadWBCards = async () => {
+    if (cardsLoaded) { setShowDropdown(true); return; }
+    setCardsLoading(true);
+    setCardsError('');
+    try {
+      const data = await api.getWBCards();
+      setWbCards(data.cards || []);
+      setCardsLoaded(true);
+    } catch (err: any) {
+      setCardsError(err.response?.data?.message || 'Не удалось загрузить товары');
+    } finally {
+      setCardsLoading(false);
+      setShowDropdown(true);
+    }
+  };
+
+  const filtered = form.wbSkuId
+    ? wbCards.filter((c) =>
+        String(c.nmId).includes(form.wbSkuId) ||
+        c.title.toLowerCase().includes(form.wbSkuId.toLowerCase()) ||
+        c.vendorCode.toLowerCase().includes(form.wbSkuId.toLowerCase())
+      )
+    : wbCards;
+
+  const selectCard = (card: { nmId: number; title: string }) => {
+    setForm((prev) => ({ ...prev, wbSkuId: String(card.nmId), name: card.title }));
+    setShowDropdown(false);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -240,7 +277,59 @@ function SKUModal({ onClose, onSave }: { onClose: () => void; onSave: (sku: SKU)
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           {error && <div className="bg-red-50 text-red-600 text-sm p-3 rounded-lg">{error}</div>}
 
-          <Field label="WB SKU ID *" name="wbSkuId" placeholder="123456789" />
+          {/* WB SKU ID с автокомплитом */}
+          <div className="relative">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              WB SKU ID (nmID) *
+              {cardsLoaded && <span className="text-gray-400 font-normal ml-2">— {wbCards.length} товаров</span>}
+            </label>
+            <input
+              type="text"
+              value={form.wbSkuId}
+              onFocus={loadWBCards}
+              onChange={(e) => {
+                setForm((prev) => ({ ...prev, wbSkuId: e.target.value }));
+                setShowDropdown(true);
+              }}
+              onBlur={() => setTimeout(() => setShowDropdown(false), 200)}
+              placeholder="Введите nmID или название товара..."
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              autoComplete="off"
+            />
+
+            {showDropdown && (
+              <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-56 overflow-y-auto">
+                {cardsLoading && (
+                  <div className="px-4 py-3 text-sm text-gray-500 text-center">Загрузка товаров...</div>
+                )}
+                {cardsError && (
+                  <div className="px-4 py-3 text-sm text-red-600 bg-red-50">{cardsError}</div>
+                )}
+                {!cardsLoading && !cardsError && filtered.length > 0 && filtered.map((card) => (
+                  <button
+                    key={card.nmId}
+                    type="button"
+                    onMouseDown={() => selectCard(card)}
+                    className="w-full text-left px-4 py-2.5 hover:bg-blue-50 transition border-b last:border-0"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-800 font-medium truncate mr-3">{card.title}</span>
+                      <span className="text-xs font-mono text-gray-400 shrink-0">{card.nmId}</span>
+                    </div>
+                    {card.vendorCode && (
+                      <div className="text-xs text-gray-400 mt-0.5">Артикул: {card.vendorCode}</div>
+                    )}
+                  </button>
+                ))}
+                {!cardsLoading && !cardsError && filtered.length === 0 && cardsLoaded && (
+                  <div className="px-4 py-3 text-sm text-gray-500 text-center">
+                    {form.wbSkuId ? 'Товаров не найдено' : 'Нет товаров'}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
           <Field label="Название товара" name="name" placeholder="Электрическая фритюрница" />
 
           <div className="border-t pt-4 mt-4">

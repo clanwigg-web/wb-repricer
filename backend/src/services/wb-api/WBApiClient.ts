@@ -126,40 +126,60 @@ export class WBApiClient {
   }
 
   /**
-   * Получить список товаров продавца
+   * Получить список карточек товаров через Content API v2
+   * POST https://content-api.wildberries.ru/content/v2/get/cards/list
+   * Параметр textSearch — поиск по nmID или названию
    */
-  async getProducts(limit: number = 100): Promise<WBProduct[]> {
+  async getCardsList(textSearch?: string, limit: number = 100): Promise<WBProduct[]> {
     try {
       await this.waitForRateLimit();
 
-      this.logger.info(`Fetching products (limit: ${limit})`);
+      this.logger.info(`Fetching cards list (search: "${textSearch}", limit: ${limit})`);
 
-      const response = await this.client.get(`/content/v1/cards/cursor/list`, {
-        params: {
-          locale: 'ru',
-          limit
-        }
+      const contentClient = axios.create({
+        baseURL: 'https://content-api.wildberries.ru',
+        headers: {
+          'Authorization': this.apiKey,
+          'Content-Type': 'application/json'
+        },
+        timeout: 30000
       });
 
-      if (!response.data || !response.data.data) {
+      const body: any = {
+        settings: {
+          sort: { ascending: false },
+          cursor: { limit },
+          filter: { withPhoto: -1 }
+        }
+      };
+
+      if (textSearch) {
+        body.settings.filter.textSearch = textSearch;
+      }
+
+      const response = await contentClient.post('/content/v2/get/cards/list?locale=ru', body);
+
+      if (!response.data || !response.data.cards) {
         return [];
       }
 
-      return response.data.data.cards.map((card: any) => ({
+      return response.data.cards.map((card: any) => ({
         nmId: card.nmID,
-        vendorCode: card.vendorCode,
-        title: card.object,
-        price: card.sizes[0]?.price || 0,
-        discount: card.discount || 0,
-        priceWithDiscount: card.sizes[0]?.priceWithDiscount || 0,
-        rating: card.rating || 0,
-        feedbacks: card.feedbackCount || 0,
-        inStock: card.sizes[0]?.quantity > 0
+        vendorCode: card.vendorCode || '',
+        title: card.title || card.brand || '',
+        price: 0,
+        discount: 0,
+        priceWithDiscount: 0,
+        rating: 0,
+        feedbacks: 0,
+        inStock: false
       }));
 
     } catch (error: any) {
-      this.logger.error('Failed to fetch products', {
-        error: error.message
+      this.logger.error('Failed to fetch cards list', {
+        error: error.message,
+        status: error.response?.status,
+        responseData: error.response?.data
       });
       return [];
     }
@@ -167,22 +187,48 @@ export class WBApiClient {
 
   /**
    * Установить цену товара
+   * Реальный endpoint: POST https://discounts-prices-api.wildberries.ru/api/v2/upload/task
+   * Тело: { data: [{ nmID, price, discount }] }
+   * Если новая цена со скидкой будет хотя бы в 3 раза меньше старой — товар попадёт в карантин.
    */
-  async setPrice(nmId: number, price: number): Promise<WBPriceUpdateResult> {
+  async setPrice(nmId: number, price: number, discount: number = 0): Promise<WBPriceUpdateResult> {
     try {
       await this.waitForRateLimit();
 
-      this.logger.info(`Setting price for product ${nmId}: ${price}₽`);
+      this.logger.info(`Setting price for nmID ${nmId}: price=${price}₽, discount=${discount}%`);
 
-      // Реальный endpoint WB API для изменения цен
-      const response = await this.client.post(`/public/api/v1/prices`, {
-        prices: [
+      // Отдельный клиент для pricing API (другой baseURL)
+      const pricingClient = axios.create({
+        baseURL: 'https://discounts-prices-api.wildberries.ru',
+        headers: {
+          'Authorization': this.apiKey,
+          'Content-Type': 'application/json'
+        },
+        timeout: 30000
+      });
+
+      const response = await pricingClient.post('/api/v2/upload/task', {
+        data: [
           {
-            nmId,
-            price
+            nmID: nmId,
+            price: price,
+            discount: discount
           }
         ]
       });
+
+      if (response.data?.error) {
+        this.logger.error(`WB API returned error for nmID ${nmId}`, {
+          errorText: response.data.errorText
+        });
+        return {
+          success: false,
+          nmId,
+          error: response.data.errorText || 'Unknown error from WB API'
+        };
+      }
+
+      this.logger.info(`Price set successfully for nmID ${nmId}, task id: ${response.data?.data?.id}`);
 
       return {
         success: true,
@@ -190,15 +236,18 @@ export class WBApiClient {
       };
 
     } catch (error: any) {
-      this.logger.error(`Failed to set price for product ${nmId}`, {
+      this.logger.error(`Failed to set price for nmID ${nmId}`, {
         error: error.message,
-        price
+        status: error.response?.status,
+        responseData: error.response?.data,
+        price,
+        discount
       });
 
       return {
         success: false,
         nmId,
-        error: error.message
+        error: error.response?.data?.errorText || error.message
       };
     }
   }

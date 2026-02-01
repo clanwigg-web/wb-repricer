@@ -8,6 +8,9 @@ const router = Router();
 // Все routes требуют аутентификации
 router.use(authMiddleware);
 
+// WB API карточки (для автокомплита) — ДОЛЖЕН быть перед /:id !
+router.get('/wb-cards', skuController.getWBCards);
+
 // CRUD operations
 router.get('/', skuController.getSKUs);
 router.get('/:id', skuController.getSKU);

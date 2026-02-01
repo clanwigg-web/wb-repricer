@@ -56,6 +56,14 @@ class ApiClient {
     return data;
   }
 
+  // WB API карточки (автокомплит)
+  async getWBCards(search?: string) {
+    const params: any = {};
+    if (search) params.search = search;
+    const { data } = await this.client.get('/skus/wb-cards', { params });
+    return data;
+  }
+
   // SKUs
   async getSKUs(params?: { active?: boolean; page?: number; limit?: number }) {
     const { data } = await this.client.get('/skus', { params });
