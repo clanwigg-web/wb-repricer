@@ -7,6 +7,7 @@ const menuItems = [
   { name: 'Dashboard', path: '/dashboard', icon: '📊' },
   { name: 'SKU', path: '/skus', icon: '📦' },
   { name: 'Стратегии', path: '/strategies', icon: '⚡' },
+  { name: 'Настройки', path: '/settings', icon: '⚙️' },
 ];
 
 export default function Sidebar() {

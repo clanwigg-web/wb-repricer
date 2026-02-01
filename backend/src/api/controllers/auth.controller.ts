@@ -189,3 +189,51 @@ export const me = async (req: Request, res: Response) => {
     });
   }
 };
+
+/**
+ * Обновить профиль пользователя (wbApiKey)
+ */
+export const updateMe = async (req: Request, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({
+        error: 'Unauthorized',
+        message: 'User not authenticated'
+      });
+    }
+
+    const { wbApiKey } = req.body;
+
+    if (wbApiKey === undefined) {
+      return res.status(400).json({
+        error: 'Bad Request',
+        message: 'wbApiKey is required'
+      });
+    }
+
+    const user = await prisma.user.update({
+      where: { id: req.user.userId },
+      data: { wbApiKey: wbApiKey || null },
+      select: {
+        id: true,
+        email: true,
+        wbApiKey: true,
+        updatedAt: true
+      }
+    });
+
+    logger.info(`User profile updated: ${user.email}`);
+
+    res.json({
+      message: 'Profile updated successfully',
+      user
+    });
+
+  } catch (error: any) {
+    logger.error('Failed to update user profile', { error: error.message });
+    res.status(500).json({
+      error: 'Internal Server Error',
+      message: 'Failed to update profile'
+    });
+  }
+};

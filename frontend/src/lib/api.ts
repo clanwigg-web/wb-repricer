@@ -51,6 +51,11 @@ class ApiClient {
     return data;
   }
 
+  async updateProfile(updates: { wbApiKey?: string }) {
+    const { data } = await this.client.patch('/auth/me', updates);
+    return data;
+  }
+
   // SKUs
   async getSKUs(params?: { active?: boolean; page?: number; limit?: number }) {
     const { data } = await this.client.get('/skus', { params });
